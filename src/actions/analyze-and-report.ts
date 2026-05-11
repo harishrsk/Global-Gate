@@ -14,8 +14,6 @@ const logger = pino({
 
 import { getSession } from '@/lib/auth';
 import { inngest } from '@/lib/inngest';
-import fs from 'fs/promises';
-import path from 'path';
 
 const AnalyzeSchema = z.object({
   corridor: z.string(),
@@ -53,16 +51,13 @@ export async function analyzeAndReport(formData: FormData) {
       },
     });
 
-    // 2. Save Image to Local Disk (Public/Uploads)
+    // 2. Convert Image to Base64 for Cloud processing
     const arrayBuffer = await validated.image.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const fileName = `${report.id}.${validated.mimeType.split('/')[1]}`;
-    const filePath = path.join(process.cwd(), 'public', 'uploads', fileName);
-    
-    await fs.writeFile(filePath, buffer);
+    const base64Image = buffer.toString('base64');
 
-    // 3. Trigger Asynchronous Workflow (Pass path instead of large buffer)
-    console.log('Triggering Inngest event...');
+    // 3. Trigger Asynchronous Workflow (Pass Base64 data directly)
+    console.log('Triggering Inngest event with Cloud-Ready data...');
     try {
       await inngest.send({
         name: "exim/docs.uploaded",
@@ -71,8 +66,7 @@ export async function analyzeAndReport(formData: FormData) {
           userId: userId,
           corridor: validated.corridor,
           mimeType: validated.mimeType,
-          imageUrl: `/uploads/${fileName}`,
-          localPath: filePath
+          imageBase64: base64Image, // Cloud-Ready transfer
         },
       });
       console.log('Inngest event sent successfully');

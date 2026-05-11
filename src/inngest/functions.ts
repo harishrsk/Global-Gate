@@ -1,7 +1,6 @@
 import { inngest } from "@/lib/inngest";
 import { prisma } from "@/lib/prisma";
 import { AIService } from "@/services/ai.service";
-import fs from 'fs/promises';
 
 /**
  * Enterprise Asynchronous Workflow: Multi-Image Grading & Compliance Synthesis
@@ -14,19 +13,17 @@ export const processGrading = inngest.createFunction(
     triggers: [{ event: "exim/docs.uploaded" }] 
   },
   async ({ event, step }) => {
-    const { reportId, corridor, mimeType, localPath } = event.data;
+    const { reportId, corridor, mimeType, imageBase64 } = event.data;
     console.log('>>> INNGEST FUNCTION TRIGGERED:', { reportId, eventName: event.name });
 
     // 1. Initial Processing Step (AI Vision Analysis)
     const gradingResult = await step.run("gemini-ai-analysis", async () => {
-      const { localPath } = event.data;
-      console.log(`Starting AI Analysis for report ${reportId} at ${localPath}`);
+      console.log(`Starting AI Analysis for report ${reportId}`);
       
-      if (!localPath) throw new Error("No image path provided for analysis");
+      if (!imageBase64) throw new Error("No image data provided for analysis");
       
-      const buffer = await fs.readFile(localPath);
+      const buffer = Buffer.from(imageBase64, 'base64');
       
-      // Use Gemini 1.5 Pro for synthesizing as requested
       const aiService = new AIService(process.env.GEMINI_API_KEY || "");
       
       try {
