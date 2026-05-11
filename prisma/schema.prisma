@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  role          UserRole  @default(MANAGER)
+  corridors     TradeCorridor[]
+  reports       Report[]  @relation("ReportAuthor")
+  approvedBy    Report[]  @relation("ReportApprover")
+  auditLogs     AuditLog[]
+  feedbacks     Feedback[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum UserRole {
+  USER
+  MANAGER
+  ADMIN
+}
+
+enum TradeType {
+  IMPORT
+  EXPORT
+}
+
+enum ProductCategory {
+  AGRICULTURE
+  ELECTRONICS
+  TEXTILES
+  PHARMACEUTICALS
+  AUTOMOTIVE
+  CHEMICALS
+  OTHER
+}
+
+model TradeCorridor {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String   @default("New Corridor")
+  product     String
+  origin      String
+  destination String
+  type        TradeType @default(EXPORT)
+  category    ProductCategory @default(AGRICULTURE)
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Report {
+  id            String       @id @default(cuid())
+  title         String
+  content       Json         // Store AI grading results
+  status        ReportStatus @default(PROCESSING)
+  authorId      String
+  author        User         @relation("ReportAuthor", fields: [authorId], references: [id])
+  approverId    String?
+  approver      User?        @relation("ReportApprover", fields: [approverId], references: [id])
+  imageUrl      String?      // Raw image for verification
+  pqcSignature  String?      // PQC signature for integrity
+  securityLevel String?      // PQC-based security badge
+  rejectionReason String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+enum ReportStatus {
+  PROCESSING
+  AI_ANALYZED
+  AI_FAILED
+  PENDING_HUMAN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model AuditLog {
+  id            String    @id @default(cuid())
+  action        String    // e.g., "AI_ANALYSIS", "HUMAN_APPROVAL", "PQC_SIGNING"
+  description   String?
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  reportId      String?
+  timestamp     DateTime  @default(now())
+  payload       Json?     // Additional context
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  content   String
+  category  String   @default("GENERAL") // UI, PERFORMANCE, FEATURE_REQUEST, BUG
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
